@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 # --- 網頁設定 (換個望遠鏡 Icon 增加探測儀的感覺) ---
 st.set_page_config(page_title="ShiFu 藍海市場探測儀", layout="wide", page_icon="🔭")
@@ -82,14 +83,28 @@ with tab_ai:
                     請直接輸出報告，不要加上任何 Markdown 的程式碼區塊符號 (```) 或額外的問候語。
                     """
                     
-                    response = model.generate_content(prompt)
+                   # 降低安全審查等級，避免被 PTT 鄉民的真實用語觸發阻擋機制
+                    response = model.generate_content(
+                        prompt,
+                        safety_settings={
+                            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                        }
+                    )
                     
                     # 狀態列更新為完成，並自動收合
                     status.update(label="企劃生成完畢！鎖定高潛力市場缺口。", state="complete", expanded=False)
                     
-                    # 將結果放在一個有邊框的容器裡，看起來更像一份正式報告
+                    # 將結果放在一個有邊框的容器裡
                     with st.container(border=True):
-                        st.markdown(response.text)
+                        # 增加 Error Handling 防護網：確認模型真的有吐出文字
+                        if response.parts:
+                            st.markdown(response.text)
+                        else:
+                            st.warning("⚠️ 報告生成被 API 強制攔截。這通常是因為這批 PTT 標題中出現了極度敏感的字眼。請嘗試重新抓取數據或過濾髒話。")
+                            # 面試時如果遇到這個警告，你可以從容地向面試官解釋 API 的安全機制！
                     
                 except Exception as e:
                     status.update(label="系統發生錯誤", state="error", expanded=True)
