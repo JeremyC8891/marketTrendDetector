@@ -9,7 +9,7 @@ from collections import Counter
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import platform
-
+import re
 # --- 網頁設定 ---
 st.set_page_config(page_title="ShiFu 藍海市場探測儀", layout="wide", page_icon="🔭")
 
@@ -57,14 +57,20 @@ with tab_keyword:
     st.subheader("鄉民焦慮關鍵字萃取 (Keyword Extraction)")
     
     with st.spinner('正在執行 NLP 中文斷詞與頻率分析...'):
-        # 1. 彙整所有標題文字
+        # 1. 彙整所有標題文字 (剛剛就是這行不見了！)
         all_text = " ".join(df['post_title'].tolist())
         
-        # 2. 使用 jieba 進行斷詞
-        words = jieba.lcut(all_text)
+        # --- 新增的資料清洗 (Data Cleansing) 步驟 ---
+        # 清除 [任何文字] (例如 [閒聊], [請益])
+        clean_text = re.sub(r'\[.*?\]', '', all_text)
+        # 清除 Re: 或 Fw: 等回覆標籤 (不分大小寫)
+        clean_text = re.sub(r'(?i)(Re:|Fw:)\s*', '', clean_text)
+        
+        # 2. 使用 jieba 進行斷詞 (改用洗乾淨的 clean_text)
+        words = jieba.lcut(clean_text)
         
         # 3. 過濾停用詞 (Stop words) 與單一字元
-        stop_words = {'的', '了', '是', '嗎', '怎麼', '在', '我', '有', '請教', '如何', '什麼', '問題', '大家', '請', '與', '和', '不', '都', '會', '被', '想'}
+        stop_words = {'的', '了', '是', '嗎', '怎麼', '在', '我', '有', '請教', '如何', '什麼', '問題', '大家', '請', '與', '和', '不', '都', '會', '被', '想', '請益', '閒聊', '討論'}
         filtered_words = [w for w in words if len(w) > 1 and w not in stop_words]
         
         # 4. 計算詞頻
@@ -76,23 +82,24 @@ with tab_keyword:
         
         with col_k1:
             st.markdown("##### 📈 Top 20 痛點熱力分佈")
-            # 轉換為 DataFrame 方便 Streamlit 顯示
-            df_words = pd.DataFrame(top_words, columns=['關鍵字', '出現次數'])
-            # 使用強大的 column_config 製作熱力長條圖
-            st.dataframe(
-                df_words,
-                column_config={
-                    "出現次數": st.column_config.ProgressColumn(
-                        "熱度 (出現次數)",
-                        help="關鍵字出現的頻率",
-                        format="%d 次",
-                        min_value=0,
-                        max_value=int(df_words['出現次數'].max()),
-                    ),
-                },
-                hide_index=True,
-                use_container_width=True
-            )
+            if top_words:
+                df_words = pd.DataFrame(top_words, columns=['關鍵字', '出現次數'])
+                st.dataframe(
+                    df_words,
+                    column_config={
+                        "出現次數": st.column_config.ProgressColumn(
+                            "熱度 (出現次數)",
+                            help="關鍵字出現的頻率",
+                            format="%d 次",
+                            min_value=0,
+                            max_value=int(df_words['出現次數'].max()),
+                        ),
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+            else:
+                st.info("資料量不足以產生熱力分佈")
             
         with col_k2:
             st.markdown("##### ☁️ 焦慮文字雲")
@@ -106,23 +113,21 @@ with tab_keyword:
                 font_path = None
                 
             try:
-                # 產生文字雲
-                wc = WordCloud(
-                    font_path=font_path,
-                    background_color='white',
-                    width=600, 
-                    height=400,
-                    colormap='magma' # 使用像熱力圖的配色
-                ).generate_from_frequencies(word_counts)
-                
-                # 使用 matplotlib 畫出並在 Streamlit 顯示
-                fig, ax = plt.subplots()
-                ax.imshow(wc, interpolation='bilinear')
-                ax.axis('off')
-                st.pyplot(fig)
+                if word_counts:
+                    wc = WordCloud(
+                        font_path=font_path,
+                        background_color='white',
+                        width=600, 
+                        height=400,
+                        colormap='magma' # 使用像熱力圖的配色
+                    ).generate_from_frequencies(word_counts)
+                    
+                    fig, ax = plt.subplots()
+                    ax.imshow(wc, interpolation='bilinear')
+                    ax.axis('off')
+                    st.pyplot(fig)
             except Exception as e:
                 st.warning(f"⚠️ 無法載入中文字體，請確認您的作業系統字體路徑。({e})")
-
 # 【頁籤 3：AI 企劃室】
 with tab_ai:
     st.subheader("🚀 啟動高階語意分析，將雜亂數據轉化為爆款企劃")
