@@ -1,4 +1,4 @@
-# 🔭 ShiFu 藍海市場情報雷達 (Blue Ocean Market Radar)
+# 🔭 藍海市場情報雷達 (Blue Ocean Market Radar)
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![BeautifulSoup](https://img.shields.io/badge/BeautifulSoup4-Web_Scraping-green.svg)
